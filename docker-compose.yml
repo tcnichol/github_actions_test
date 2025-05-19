@@ -2,8 +2,13 @@ version: '3.8'
 
 services:
   test-app:
-    image: tcnichol/test:latest  # Use 'latest' or a specific tag you want to track
+    image: tcnichol/test:v1.0.0  # Initial version - will be auto-updated
     container_name: test-container
     restart: unless-stopped
     environment:
       PYTHONUNBUFFERED: "1"
+    volumes:
+      - version-tracker:/app/data
+
+volumes:
+  version-tracker:
