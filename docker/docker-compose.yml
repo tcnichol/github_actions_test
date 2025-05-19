@@ -2,6 +2,8 @@ version: '3.8'
 
 services:
   test-app:
-    image: tcnichol/test:v1.0.0
+    image: tcnichol/test:v1.0.0  # Will be overridden by GitHub Actions
     container_name: test-container
     restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"  # For immediate print output
