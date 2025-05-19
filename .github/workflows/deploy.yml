@@ -25,6 +25,6 @@ jobs:
 
     - name: Stop and restart containers
       run: |
-        cd /path/to/your/docker-compose/directory
+        cd /Users/helium/ncsa/margindx/github_actions_test/docker
         docker-compose down
         docker-compose up -d
