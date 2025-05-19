@@ -2,7 +2,7 @@ import time
 import sys
 def main():
     for i in range(0, 100):
-        print(f"Hello world v1.0.0 loop {i}")
+        print(f"Hello world v1.0.1 loop {i}")
         sys.stdout.flush()
         time.sleep(10)
 
