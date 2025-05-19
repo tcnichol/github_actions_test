@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   test-app:
-    image: tcnichol/test:v1.0.0  # Will be overridden by GitHub Actions
+    image: tcnichol/test:latest  # Use 'latest' or a specific tag you want to track
     container_name: test-container
     restart: unless-stopped
     environment:
-      PYTHONUNBUFFERED: "1"  # For immediate print output
+      PYTHONUNBUFFERED: "1"
