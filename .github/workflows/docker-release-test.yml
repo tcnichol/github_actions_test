@@ -37,5 +37,4 @@ jobs:
           context: .
           push: true
           tags: |
-#            ${{ env.DOCKER_HUB_REPOSITORY }}:latest
             ${{ env.DOCKER_HUB_REPOSITORY }}:${{ steps.release-version.outputs.version }}
