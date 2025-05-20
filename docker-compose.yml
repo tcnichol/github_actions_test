@@ -2,27 +2,9 @@ version: '3.8'
 
 services:
   test-app:
-    image: tcnichol/test:v1.0.0  # Initial version
+    image: tcnichol/test:${VERSION_NUMBER}  # Initial version
     container_name: test-container
     restart: unless-stopped
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
-      - com.centurylinklabs.watchtower.tags=true  # ← Critical for version checks
-
-  watchtower:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock.raw:/var/run/docker.sock
     environment:
-      - WATCHTOWER_POLL_INTERVAL=120
-      - WATCHTOWER_DEBUG=true
-      - REPO_USER=${DOCKERHUB_USER:?err}
-      - REPO_PASS=${DOCKERHUB_TOKEN:?err}
-      - DOCKERHUB_USER=${DOCKERHUB_USER:?err}
-      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN:?err}
-    command:
-      --include-stopped 
-      --enable-lifecycle-hooks
-      --enable-semver
-      --monitor-only  # Report updates without auto-updating
-    restart: unless-stopped
+      - DOCKERHUB_USER=${DOCKERHUB_USER}
+      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}
