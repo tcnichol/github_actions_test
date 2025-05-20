@@ -1,67 +1,56 @@
-name: Docker Hub Auth Test
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# GitHub recommends pinning actions to a commit SHA.
+# To get a newer version, you will need to update the SHA.
+# You can also reference a tag or branch, but the action may change without warning.
+
+name: Publish Docker image
 
 on:
-  workflow_dispatch:  # Allows manual triggering
+  release:
+    types: [published]
 
 jobs:
-  auth-test:
+  push_to_registry:
+    name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
     steps:
-      - name: Checkout (minimal)
+      - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Debug Secrets
-        run: |
-          echo "::group::Secret Debug Info"
-          echo "DOCKER_HUB_USERNAME length: ${#{{ secrets.DOCKER_HUB_USERNAME }}}"
-          echo "DOCKER_HUB_TOKEN length: ${#{{ secrets.DOCKER_HUB_TOKEN }}}"
-          echo "::endgroup::"
-          
-          # Verify secrets exist
-          if [ -z "${{ secrets.DOCKER_HUB_USERNAME }}" ]; then
-            echo "::error::DOCKER_HUB_USERNAME secret is empty!"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DOCKER_HUB_TOKEN }}" ]; then
-            echo "::error::DOCKER_HUB_TOKEN secret is empty!"
-            exit 1
-          fi
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Pure Docker Login Test
-        id: docker-login
-        run: |
-          echo "::group::Raw Login Command"
-          echo "Running: echo 'REDACTED_TOKEN' | docker login -u '${{ secrets.DOCKER_HUB_USERNAME }}' --password-stdin"
-          echo "::endgroup::"
-          
-          # Actual login with full output
-          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login \
-            -u "${{ secrets.DOCKER_HUB_USERNAME }}" \
-            --password-stdin \
-            2>&1 | tee /tmp/docker-login.log
-          
-          # Save login status
-          LOGIN_RESULT=${PIPESTATUS[0]}
-          echo "result=$LOGIN_RESULT" >> $GITHUB_OUTPUT
-          
-          echo "::group::Full Docker Login Output"
-          cat /tmp/docker-login.log
-          echo "::endgroup::"
-          
-          if [ $LOGIN_RESULT -ne 0 ]; then
-            echo "::error::Docker login failed!"
-            exit 1
-          fi
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: tcnichol/test
 
-      - name: Verify Credentials
-        if: steps.docker-login.outputs.result == 0
-        run: |
-          echo "::group::Docker Config File"
-          cat ~/.docker/config.json
-          echo "::endgroup::"
-          
-          echo "::group::Test Docker Hub Access"
-          docker pull hello-world
-          docker tag hello-world tcnichol/test:auth-test
-          docker push tcnichol/test:auth-test && echo "::notice::Push succeeded!" || echo "::error::Push failed!"
-          echo "::endgroup::"
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: index.docker.io/my-docker-hub-namespace/my-docker-hub-repository
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
