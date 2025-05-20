@@ -5,7 +5,7 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY test.py .
+COPY second_test.py .
 
 # Run test.py when the container launches
-CMD ["python", "-u", "test.py"]
+CMD ["python", "-u", "second_test.py"]
