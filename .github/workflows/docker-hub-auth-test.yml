@@ -1,0 +1,67 @@
+name: Docker Hub Auth Test
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  auth-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (minimal)
+        uses: actions/checkout@v4
+
+      - name: Debug Secrets
+        run: |
+          echo "::group::Secret Debug Info"
+          echo "DOCKER_HUB_USERNAME length: ${#{{ secrets.DOCKER_HUB_USERNAME }}}"
+          echo "DOCKER_HUB_TOKEN length: ${#{{ secrets.DOCKER_HUB_TOKEN }}}"
+          echo "::endgroup::"
+          
+          # Verify secrets exist
+          if [ -z "${{ secrets.DOCKER_HUB_USERNAME }}" ]; then
+            echo "::error::DOCKER_HUB_USERNAME secret is empty!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_HUB_TOKEN }}" ]; then
+            echo "::error::DOCKER_HUB_TOKEN secret is empty!"
+            exit 1
+          fi
+
+      - name: Pure Docker Login Test
+        id: docker-login
+        run: |
+          echo "::group::Raw Login Command"
+          echo "Running: echo 'REDACTED_TOKEN' | docker login -u '${{ secrets.DOCKER_HUB_USERNAME }}' --password-stdin"
+          echo "::endgroup::"
+          
+          # Actual login with full output
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login \
+            -u "${{ secrets.DOCKER_HUB_USERNAME }}" \
+            --password-stdin \
+            2>&1 | tee /tmp/docker-login.log
+          
+          # Save login status
+          LOGIN_RESULT=${PIPESTATUS[0]}
+          echo "result=$LOGIN_RESULT" >> $GITHUB_OUTPUT
+          
+          echo "::group::Full Docker Login Output"
+          cat /tmp/docker-login.log
+          echo "::endgroup::"
+          
+          if [ $LOGIN_RESULT -ne 0 ]; then
+            echo "::error::Docker login failed!"
+            exit 1
+          fi
+
+      - name: Verify Credentials
+        if: steps.docker-login.outputs.result == 0
+        run: |
+          echo "::group::Docker Config File"
+          cat ~/.docker/config.json
+          echo "::endgroup::"
+          
+          echo "::group::Test Docker Hub Access"
+          docker pull hello-world
+          docker tag hello-world tcnichol/test:auth-test
+          docker push tcnichol/test:auth-test && echo "::notice::Push succeeded!" || echo "::error::Push failed!"
+          echo "::endgroup::"
