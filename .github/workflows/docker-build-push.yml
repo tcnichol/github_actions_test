@@ -2,69 +2,36 @@ name: Docker Build and Push
 
 on:
   push:
-    branches: [ "main" ]
-
-env:
-  DOCKERHUB_REPO: tcnichol/test
+    branches: [main]
 
 jobs:
-  docker-build:
+  build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.version_calculator.outputs.new_version }}
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Calculate new version (v1.0.3 → v1.0.4)
-      - name: Calculate new version
-        id: version_calculator
+      - name: Debug Secrets
         run: |
-          # Get the highest existing version tag from Docker Hub
-          AUTH=$(echo -n "${{ secrets.DOCKER_HUB_USERNAME }}:${{ secrets.DOCKER_HUB_TOKEN }}" | base64 | tr -d '\n')
-          TAGS=$(curl -s -H "Authorization: Basic $AUTH" \
-            "https://registry.hub.docker.com/v2/repositories/${{ env.DOCKERHUB_REPO }}/tags/?page_size=100" \
-            | jq -r '.results[].name' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
-          
-          if [ -z "$TAGS" ]; then
-            echo "No version tags found, starting with v1.0.0"
-            NEW_VERSION="v1.0.0"
-          else
-            HIGHEST_VERSION=$(echo "$TAGS" | sort -V | tail -n 1)
-            echo "Highest existing version: $HIGHEST_VERSION"
-            
-            # Increment patch version (v1.0.3 → v1.0.4)
-            MAJOR_MINOR=$(echo "$HIGHEST_VERSION" | cut -d. -f1-2)
-            PATCH=$(echo "$HIGHEST_VERSION" | cut -d. -f3 | tr -d 'v')
-            NEW_PATCH=$((PATCH + 1))
-            NEW_VERSION="$MAJOR_MINOR.$NEW_PATCH"
-          fi
-          
-          echo "New version: $NEW_VERSION"
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Username exists: ${{ secrets.DOCKER_HUB_USERNAME != '' }}"
+          echo "Token exists: ${{ secrets.DOCKER_HUB_TOKEN != '' }}"
+          echo "Repo: tcnichol/test"
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Pure Docker Login Test
+        run: |
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login \
+            -u "${{ secrets.DOCKER_HUB_USERNAME }}" \
+            --password-stdin
+          docker info
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Build and push
+      - name: Build and Push (Simplified)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.DOCKERHUB_REPO }}:${{ steps.version_calculator.outputs.new_version }}
-            ${{ env.DOCKERHUB_REPO }}:latest
+          tags: tcnichol/test:manual-test-1
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Output new version
-        run: |
-          echo "Successfully pushed ${{ env.DOCKERHUB_REPO }}:${{ steps.version_calculator.outputs.new_version }}"
-          echo "View at https://hub.docker.com/r/${{ env.DOCKERHUB_REPO }}/tags"
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
